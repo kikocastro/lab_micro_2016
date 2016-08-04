@@ -9,30 +9,30 @@ void print_uart0(const char *s) {
  }
 }
  
-/*void handler_timer() {
+void handler_timer() {
 
  *TIMER0X = (unsigned int)0x00;
  print_uart0("1 ");
  return;
 
 }
-*/
+
 void hello(){
 	print_uart0("Hello World");
 }
-/*
+
 void stop(){
 	print_uart0("2");
 	return;
 }
 
 
-void handler_timer(){
-	*TIMER0X = 0x00;
-	print_uart0("############1");
-	return;
+// void handler_timer(){
+// 	*TIMER0X = 0x00;
+// 	print_uart0("############1");
+// 	return;
 
-}*/
+// }
 
 void print_1(){
 	print_uart0("1");
