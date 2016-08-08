@@ -42,26 +42,17 @@
 		.word 0x101E2008 @timer 0 control register
 	TIMER0X:
 		.word 0x101E200c @timer 0 interrupt clear register
-	LED_SW:
-		.word 0x101E2014 @para alternar valor de leds
-	
-	SALVAR_LR:
-		.word 0x0300000  @salvando LR
-
-	SALVAR_RO:
-		.word 0x0300004  @salvando R0
-
 	ROTINA_ATUAL:
-		.word 0x0300008  @ endereo para armazenar qual rotina esta rodando
+		.word 0x0300008  @rotina atual
 
 	@Tratamento de Interrupcoes
 	_Reset:
-		LDR r13, = 0x1000 @ coloca o valor no SP
+		LDR r13, = 0x1000
 
-		MRS r0, CPSR_all @ guarda o CPSR
-		BIC r0, r0, #0x1F @ limpa os bits de modo
-		ORR R0, R0, #0b10010 @ guarda o modo supervisor
-		MSR CPSR_all, r0 @ salva em CPSR
+		MRS r0, CPSR_all
+		BIC r0, r0, #0x1F
+		ORR R0, R0, #0b10010
+		MSR CPSR_all, r0
 
 		LDR r13, = 0x2000
 
@@ -94,103 +85,62 @@
 		b .
 	
 	do_software_interrupt:			@Rotina de Interrupção de software
-		add r1, r2, r3			@r1 = r2 + r3
-		mov pc, r14			@volta p/ o endereço armazenado em r14
+		add r1, r2, r3				@r1 = r2 + r3
+		mov pc, r14					@volta p/ o endereço armazenado em r14
 	
-	do_irq_interrupt:			@Rotina de interrupções IRQ
+	do_irq_interrupt:				@Rotina de interrupções IRQ
 
-		@ADR r12, linhaA
-		@SUB r14, r14, #4
-		@STMEA r12!, {r0-r11, lr}
-		@
-		@MRS r0, CPSR_all
-		@BIC r0, r0, #0x1F
-		@ORR R0, R0, #0b10011
-		@MSR CPSR_all, r0
-
-		@STMEA r12!, {sp, lr}
-
-		@MRS r0, CPSR_all
-		@BIC r0, r0, #0x1F
-		@ORR R0, R0, #0b10010
-		@MSR CPSR_all, r0		
-
-		@LDR r0, INTPND			@Carrega o registrador de status de interrupção
-		@LDR r0, [r0]
-		@TST r0, #0x0010			@verifica se é uma interupção de timer
-		@BLNE handler_timer 		@vai para o rotina de tratamento da interupção de timer
-		
-		@MRS r0, CPSR_all
-		@BIC r0, r0, #0x1F
-		@ORR R0, R0, #0b10011
-		@MSR CPSR_all, r0
-
-		@LDMEA r12!, {sp, lr}
-		
-		@MRS r0, CPSR_all
-		@BIC r0, r0, #0x1F
-		@ORR R0, R0, #0b10010
-		@MSR CPSR_all, r0
-
-		@LDMEA r12!, {r0-r11, pc}^
-
-		LDR r12, ROTINA_ATUAL
-		LDR r12, [r12]
-		SUBS r12, #1
-		BPL do_B
-
+		LDR r12, ROTINA_ATUAL		@salvamos endereço da rotina atual
+		LDR r12, [r12]				@carregamos o que ta no endereço
+		SUBS r12, #1				@tiramos 1 para ver onde estamos A=1 B=0
+		BPL do_B					@se >= 0  vamos pro B
+	
 	do_A:
-		ADR r12, linhaA
-		SUB r14, r14, #4
-		STMEA r12!, {r0-r11, lr}
+		ADR r12, linhaA				@carrega endereço de linhaA em r12
+		SUB r14, r14, #4			@corrigimos LR
+		STMEA r12!, {r0-r11, lr}	@botamos na linhaA os regs
 
-		MRS r0, SPSR
-		STMEA r12!, {r0}
+		MRS r0, SPSR				@guardamos o modo anterior em r0 (SPSR indica o modo anterior de CPSR)
+		STMEA r12!, {r0}			@botamos na pilha (nosso SPSR -> CPSR da linhaA)
 
 		LDR r0, ROTINA_ATUAL
 		LDR r1, =1
-		STR r1, [r0]
+		STR r1, [r0]				@atualizamos rotina atual para A
 
 		LDR r0, TIMER0X
 		LDR r1, =0
-		STR r1, [r0]		
+		STR r1, [r0]				@abaixamos a interrupção
 		
 		MRS r0, CPSR_all
-		BIC r0, r0, #0x1F
-		ORR R0, R0, #0b10011
-		MSR CPSR_all, r0
+		BIC r0, r0, #0x1F			@limpa os bits de modo
+		ORR R0, R0, #0b10011 		@guarda o modo supervisor
+		MSR CPSR_all, r0 			@salva em cpsr
 
-		STMEA r12!, {sp, lr}
+		STMEA r12!, {sp, lr}		@empilhamos sp e lr
 
-		MRS r0, CPSR_all
-		BIC r0, r0, #0x1F
-		ORR R0, R0, #0b10010
-		MSR CPSR_all, r0		
-
-		LDR r0, INTPND			@Carrega o registrador de status de interrupção
-		LDR r0, [r0]
-		TST r0, #0x0010			@verifica se é uma interupção de timer
-		@BLNE rotinaB 		@vai para o rotina de tratamento da interupção de timer
+		MRS r0, CPSR_all			
+		BIC r0, r0, #0x1F			@limpa os bits de modo
+		ORR R0, R0, #0b10010		@guarda o modo irq
+		MSR CPSR_all, r0			@salva em cpsr
 		
-		ADR r12, linhaB
-		ADD r12, r12, #64
+		ADR r12, linhaB				@carrega endereço da linhaB
+		ADD r12, r12, #64			@vamos para o final da linha
 
-		MRS r0, CPSR_all
-		BIC r0, r0, #0x1F
-		ORR R0, R0, #0b10011
-		MSR CPSR_all, r0
+		MRS r0, CPSR_all			
+		BIC r0, r0, #0x1F			@limpa os bits de modo
+		ORR R0, R0, #0b10011 		@guarda o modo supervisor
+		MSR CPSR_all, r0 			@salva em cpsr
 
-		LDMEA r12!, {sp, lr}
+		LDMEA r12!, {sp, lr}		@salvamos em linhaB sp e lr
 		
 		MRS r0, CPSR_all
-		BIC r0, r0, #0x1F
-		ORR R0, R0, #0b10010
-		MSR CPSR_all, r0
-
+		BIC r0, r0, #0x1F			@limpa os bits de modo
+		ORR R0, R0, #0b10010		@guarda o modo irq
+		MSR CPSR_all, r0			@salva em cpsr
 
 		LDMEA r12!, {r0}
-		MSR SPSR, r0
-		LDMEA r12!, {r0-r11, pc}^
+		MSR SPSR, r0 					
+		LDMEA r12!, {r0-r11, pc}^	@termina de desempilhar e volta para o modo anterior
 
 	do_B:
 		ADR r12, linhaB
@@ -220,11 +170,6 @@
 		ORR R0, R0, #0b10010
 		MSR CPSR_all, r0		
 
-		LDR r0, INTPND			@Carrega o registrador de status de interrupção
-		LDR r0, [r0]
-		TST r0, #0x0010			@verifica se é uma interupção de timer
-		@BLNE rotinaA 		@vai para o rotina de tratamento da interupção de timer
-		
 		ADR r12, linhaA
 		ADD r12, r12, #64
 
