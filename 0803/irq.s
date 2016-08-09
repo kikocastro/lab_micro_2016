@@ -96,12 +96,17 @@
 		BPL do_B					@se >= 0  vamos pro B
 	
 	do_A:
-		ADR r12, linhaA				@carrega endereço de linhaA em r12
-		SUB r14, r14, #4			@corrigimos LR
-		STMEA r12!, {r0-r11, lr}	@botamos na linhaA os regs
+		STMFD sp!, {r12}		 @guarda r12 na pilha
 
-		MRS r0, SPSR				@guardamos o modo anterior em r0 (SPSR indica o modo anterior de CPSR)
-		STMEA r12!, {r0}			@botamos na pilha (nosso SPSR -> CPSR da linhaA)
+		ADR r12, linhaA				@carrega endereço de linhaA em r12
+		SUB lr, lr, #4			@corrigimos LR (para pegar o valor de pc antigo)
+
+		STMIA r12!, {r0-r11}	 @guarda registradores r0-r11 na linhaA
+		MOV r7, r12              @passa endereco da proxima posicao de linhaA vazia para r7
+		LDMFD sp!, {r12}		 @retira valor original de r12 da pilha
+		STR r12, [r7], #4		 @guarda r12 na linhaA e avanca topo da pilha em r7
+
+		MRS r6, SPSR				@guardamos o modo anterior em r6 (SPSR indica o modo anterior de CPSR)
 
 		LDR r0, ROTINA_ATUAL
 		LDR r1, =1
@@ -111,83 +116,109 @@
 		LDR r1, =0
 		STR r1, [r0]				@abaixamos a interrupção
 		
+		@ vai pra modo supervisor
 		MRS r0, CPSR_all
 		BIC r0, r0, #0x1F			@limpa os bits de modo
 		ORR R0, R0, #0b10011 		@guarda o modo supervisor
 		MSR CPSR_all, r0 			@salva em cpsr
+		@MODO SUPERVISOR
+		STMIA r7!, {sp, lr}		@empilhamos sp e lr do modo supervisor
 
-		STMEA r12!, {sp, lr}		@empilhamos sp e lr
-
+		@ volta pra modo irq
 		MRS r0, CPSR_all			
 		BIC r0, r0, #0x1F			@limpa os bits de modo
 		ORR R0, R0, #0b10010		@guarda o modo irq
 		MSR CPSR_all, r0			@salva em cpsr
+		@ MODO IRQ
+		STR lr, [r7], #4       @ guardamos pc antigo e avancamos o topo
+		STR r6, [r7] 			@botamos na pilha (nosso SPSR -> CPSR da linhaA)
 		
-		ADR r12, linhaB				@carrega endereço da linhaB
-		ADD r12, r12, #64			@vamos para o final da linha
+		ADR r0, linhaB				@carrega endereço da linhaB
+		ADD r1, r0, #64			@vamos para o final da linhaB (r1 eh o topo da linhaB)
+		LDR r2, [r1], #-12       @carrega em r2 o cpsr guardado e abaixa o topo da linhaB r1 para sp
+		MSR spsr, r2 		 @coloca o cpsr guardado em spsr
 
+		@ vai pra modo supervisor
 		MRS r0, CPSR_all			
 		BIC r0, r0, #0x1F			@limpa os bits de modo
 		ORR R0, R0, #0b10011 		@guarda o modo supervisor
 		MSR CPSR_all, r0 			@salva em cpsr
-
-		LDMEA r12!, {sp, lr}		@salvamos em linhaB sp e lr
+		@ modo SUPERVISOR
+		LDMIA r1, {sp, lr}		@salvamos de linhaB sp e lr do modo supervisor
 		
+		@ volta pra modo irq
 		MRS r0, CPSR_all
 		BIC r0, r0, #0x1F			@limpa os bits de modo
 		ORR R0, R0, #0b10010		@guarda o modo irq
 		MSR CPSR_all, r0			@salva em cpsr
-
-		LDMEA r12!, {r0}
-		MSR SPSR, r0 					
-		LDMEA r12!, {r0-r11, pc}^	@termina de desempilhar e volta para o modo anterior
+		@ MODO IRQ
+		ADR r13, linhaB
+		LDMIA r13!, {r0-r12}  @desempilha o resto dos registradores
+		ADD r13, r13, #8       @ avanca topo para r15
+		LDMIA r13, {pc}^	@carrega pc e volta para o modo anterior
 
 	do_B:
-		ADR r12, linhaB
-		SUB r14, r14, #4
-		STMEA r12!, {r0-r11, lr}
+		STMFD sp!, {r12}		 @guarda r12 na pilha
 
-		MRS r0, SPSR
-		STMEA r12!, {r0}
+		ADR r12, linhaB				@carrega endereço de linhaB em r12
+		SUB lr, lr, #4			@corrigimos LR (para pegar o valor de pc antigo)
+
+		STMIA r12!, {r0-r11}	 @guarda registradores r0-r11 na linhaB
+		MOV r7, r12              @passa endereco da proxima posicao de linhaA vazia para r7
+		LDMFD sp!, {r12}		 @retira valor original de r12 da pilha
+		STR r12, [r7], #4		 @guarda r12 na linhaB e avanca topo da pilha em r7
+
+		MRS r6, SPSR				@guardamos o modo anterior em r6 (SPSR indica o modo anterior de CPSR)
 
 		LDR r0, ROTINA_ATUAL
 		LDR r1, =0
-		STR r1, [r0]
+		STR r1, [r0]				@atualizamos rotina atual para B
 
 		LDR r0, TIMER0X
 		LDR r1, =0
-		STR r1, [r0]
+		STR r1, [r0]				@abaixamos a interrupção
 		
+		@ vai pra modo supervisor
 		MRS r0, CPSR_all
-		BIC r0, r0, #0x1F
-		ORR R0, R0, #0b10011
-		MSR CPSR_all, r0
+		BIC r0, r0, #0x1F			@limpa os bits de modo
+		ORR R0, R0, #0b10011 		@guarda o modo supervisor
+		MSR CPSR_all, r0 			@salva em cpsr
+		@MODO SUPERVISOR
+		STMIA r7!, {sp, lr}		@empilhamos sp e lr do modo supervisor
 
-		STMEA r12!, {sp, lr}
-
-		MRS r0, CPSR_all
-		BIC r0, r0, #0x1F
-		ORR R0, R0, #0b10010
-		MSR CPSR_all, r0		
-
-		ADR r12, linhaA
-		ADD r12, r12, #64
-
-		MRS r0, CPSR_all
-		BIC r0, r0, #0x1F
-		ORR R0, R0, #0b10011
-		MSR CPSR_all, r0
-
-		LDMEA r12!, {sp, lr}
+		@ volta pra modo irq
+		MRS r0, CPSR_all			
+		BIC r0, r0, #0x1F			@limpa os bits de modo
+		ORR R0, R0, #0b10010		@guarda o modo irq
+		MSR CPSR_all, r0			@salva em cpsr
+		@ MODO IRQ
+		STR lr, [r7], #4       @ guardamos pc antigo e avancamos o topo
+		STR r6, [r7] 			@botamos na pilha (nosso SPSR -> CPSR da linhaA)
 		
-		MRS r0, CPSR_all
-		BIC r0, r0, #0x1F
-		ORR R0, R0, #0b10010
-		MSR CPSR_all, r0
+		ADR r0, linhaA				@carrega endereço da linhaB
+		ADD r1, r0, #64			@vamos para o final da linhaB (r1 eh o topo da linhaB)
+		LDR r2, [r1], #-12       @carrega em r2 o cpsr guardado e abaixa o topo da linhaB r1 para sp
+		MSR spsr, r2 		 @coloca o cpsr guardado em spsr
 
-		LDMEA r12!, {r0}
-		MSR SPSR, r0
-		LDMEA r12!, {r0-r11, pc}^		
+		@ vai pra modo supervisor
+		MRS r0, CPSR_all			
+		BIC r0, r0, #0x1F			@limpa os bits de modo
+		ORR R0, R0, #0b10011 		@guarda o modo supervisor
+		MSR CPSR_all, r0 			@salva em cpsr
+		@ modo SUPERVISOR
+		LDMIA r1, {sp, lr}		@salvamos de linhaB sp e lr do modo supervisor
+		
+		@ volta pra modo irq
+		MRS r0, CPSR_all
+		BIC r0, r0, #0x1F			@limpa os bits de modo
+		ORR R0, R0, #0b10010		@guarda o modo irq
+		MSR CPSR_all, r0			@salva em cpsr
+		@ MODO IRQ
+		ADR r13, linhaA
+		LDMIA r13!, {r0-r12}  @desempilha o resto dos registradores
+		ADD r13, r13, #8       @ avanca topo para r15
+		LDMIA r13, {pc}^	@volta para o modo anterior
+
 
 	timer_init:
 		LDR r0, INTEN
