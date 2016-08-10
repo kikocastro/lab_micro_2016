@@ -41,16 +41,20 @@ void handler_timer() {
 
 void rotinaA() {
 	*TIMER0X = 0;
-	while(1){
-		print_uart0("A");
+	while(1) {
+		int i=0; 
+		print_uart0(" ");
+		for (i=0; i<100000; i++);
 	}
 	return;	
 }
 
 void rotinaB() {
 	*TIMER0X = 0;
-	while(1){
-		print_uart0("B");
+	while(1) {
+		int i=0; 
+		print_uart0(" * ");
+		for (i=0; i<100000; i++);
 	}
 	return;	
 }
