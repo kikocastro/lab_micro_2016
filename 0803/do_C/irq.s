@@ -90,16 +90,19 @@
 	
 	do_irq_interrupt:				@Rotina de interrupções IRQ
 
+		STMFD sp!, {r12}		 @guarda r12 na pilha
+		
 		@ define qual eh a rotina atual
 		LDR r12, =pid
 		LDR r12, [r12]
 		CMP r12, #0
 		LDREQ r12, =linhaA
-		LDRNE r12, =linhaB
+		CMP r12, #1
+		LDREQ r12, =linhaB
+		CMP r12, #2
+		LDREQ r12, =linhaC
 
 		@ INICIO EMPILHA
-		STMFD sp!, {r12}		 @guarda r12 na pilha
-
 		SUB lr, lr, #4			@corrigimos LR (para pegar o valor de pc antigo a ser salvo depois)
 
 		STMIA r12!, {r0-r11}	 @guarda registradores r0-r11 na linhaA
@@ -135,14 +138,22 @@
 		@recupera registradores antes de acabar a interrupção
 		MOV r1, #0
 		MOV r2, #1
+		MOV r3, #2
 
 		LDR r11, =pid		
 		LDR r12, [r11]			@Pega valor do pid atual
-		CMP r12, #1 			@Verifica se era o processo B rodando
-		LDREQ r0, =linhaA		@Se sim, vamos restaurar registradores do processo A
+
+		CMP r12, #0 			@Verifica se era o processo 0 rodando
+		LDREQ r0, =linhaB		@Se sim, vamos restaurar registradores do processo 1
+		STREQ r2, pid	@Então, coloca pid = 1
+
+		CMP r12, #1 			@Verifica se era o processo 1 rodando
+		LDREQ r0, =linhaC		@Se sim, vamos restaurar registradores do processo 2
+		STREQ r3, pid	@Então, coloca pid = 0
+
+		CMP r12, #2 			@Verifica se era o processo 2 rodando
+		LDREQ r0, =linhaA		@Se sim, vamos restaurar registradores do processo 0
 		STREQ r1, pid	@Então, coloca pid = 0
-		LDRNE r0, =linhaB		@Se não, vamos restaurar registradores do processo B
-		STRNE r2, pid	@Então, coloca pid = 1
 
 		@desempilha
 		ADD r1, r0, #64			@vamos para o final da linhaB (r1 eh o topo da linhaB)
