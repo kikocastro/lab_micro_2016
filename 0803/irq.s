@@ -51,14 +51,14 @@
 
 		MRS r0, CPSR_all
 		BIC r0, r0, #0x1F
-		ORR R0, R0, #0b10010
+		ORR R0, R0, #0b10010 @ vai para modo IRQ (interrupt)
 		MSR CPSR_all, r0
 
 		LDR r13, = 0x2000
 
 		MRS r0, CPSR_all
 		BIC r0, r0, #0x1F
-		ORR R0, R0, #0b10011
+		ORR R0, R0, #0b10011 @ volta para svc
 		MSR CPSR_all, r0
 		bl  main
 		b .
